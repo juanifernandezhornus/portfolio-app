@@ -544,7 +544,7 @@ function renderSidebar(Aall){
   const tot = view==="all"? Aall : analyze(txs);
   const item=(v,name,color,A,label)=>{ const val=A&&!A.empty? usd(A.value):"Sin operaciones"; const p=A&&!A.empty&&A.invested? A.pnl/A.invested:null;
     return `<button class="pfitem" data-v="${esc(v)}" aria-pressed="${view===v}"><span class="pfav" style="background:${color}">${esc(label)}</span><span class="pfmeta"><span class="pfname">${esc(name)}</span><span class="pfval">${val}${p!=null?" "+pctTxt(p):""}</span></span></button>`; };
-  let h=item("all","Todos","var(--fg)",tot,"Σ");
+  let h=item("all","Todos","var(--accent)",tot,"Σ");
   portfolios.forEach(p=>{ h+=item(p.id,p.name,pfColor(p.id),cacheAll[p.id],(p.name.trim()[0]||"?").toUpperCase()); });
   $("pflist").innerHTML=h;
   $("addPf").classList.toggle("hide",!canWrite);
@@ -556,7 +556,7 @@ function renderHead(A,pf){
   if(!pf) $("editRow").classList.add("hide"); else { $("renameIn").value=pf.name; }
   $("actions").classList.toggle("hide",!canWrite||!portfolios.length);
   if(A.empty){ $("bal").textContent="US$ 0,00";
-    $("balsub").innerHTML=`<span class="muted" style="font-weight:500">${portfolios.length? "Cargá tu primera operación con “+ Agregar operación”." : "Creá tu primer portafolio en la columna de la izquierda."}</span>`; return; }
+    $("balsub").innerHTML=`<span class="muted" style="font-weight:500">${portfolios.length? "Cargá tu primera operación con “+ Agregar operación”." : "Creá tu primer portafolio con “+ Crear portafolio”."}</span>`; return; }
   $("bal").textContent=usd(A.value);
   const lastM=lastPt("MEP");
   $("balsub").innerHTML = `${liveBadge(A)} ${chg(A.invested?A.pnl/A.invested:null)} <span class="${cls(A.pnl)}">${signedUSD(A.pnl)}</span> <span class="muted" style="font-weight:500">ganancia total · valuado al ${fmtDate(TODAY)}${lastM?" · MEP $"+nf(2).format(lastM[1]):""}</span>`;
@@ -833,7 +833,7 @@ function updatePreview(){
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
 async function saveTx(ev){
-  ev.preventDefault(); const msg=$("txMsg"); msg.className="msg"; msg.textContent="";
+  ev.preventDefault(); clearTimeout(window.__txT); const msg=$("txMsg"); msg.className="msg"; msg.textContent="";
   const k=$("fKind").value, K=KINDS[k];
   const x={pid:$("fPf").value, date:$("fDate").value||TODAY, side, ticker:normT($("fTicker").value), kind:k,
     qty:parseNum($("fQty").value), price:parseNum($("fPrice").value), fee:parseNum($("fFee").value)||0, created:Date.now()};
@@ -848,7 +848,7 @@ async function saveTx(ev){
     const rec={id:"t"+uid(),pid:x.pid,date:x.date,side:x.side,ticker:x.ticker,kind:x.kind,qty:x.qty,price:x.price,fee:x.fee,fx:x.fx||null,created:Date.now()};
     await mutate(d=>{ if(!d.portfolios.some(p=>p.id===rec.pid)) throw new Error("Ese portafolio ya no existe."); d.txs.push(rec); }, `${x.side==="buy"?"Compra":"Venta"} ${x.ticker}`);
     msg.classList.add("ok"); msg.textContent=`${side==="buy"?"Compra":"Venta"} de ${x.ticker} guardada.`;
-    ["fQty","fPrice","fAmt","fFee"].forEach(i=>$(i).value=""); lastEdited=[]; updatePreview(); setTimeout(()=>{ closeModal(); $("txMsg").textContent=""; },900);
+    ["fQty","fPrice","fAmt","fFee"].forEach(i=>$(i).value=""); lastEdited=[]; updatePreview(); clearTimeout(window.__txT); window.__txT=setTimeout(()=>{ closeModal(); $("txMsg").textContent=""; },900);
     refreshLive(true);
   }catch(e){ msg.classList.add("err"); msg.textContent = e.message||"No se pudo guardar. Probá de nuevo en unos segundos."; }
   $("txSave").disabled=false;
