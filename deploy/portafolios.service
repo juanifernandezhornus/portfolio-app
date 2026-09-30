@@ -1,0 +1,21 @@
+[Unit]
+Description=Portafolios (app de seguimiento de portafolios)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=portafolios
+Group=portafolios
+WorkingDirectory=/opt/portafolios
+EnvironmentFile=/opt/portafolios/.env
+ExecStart=/opt/portafolios/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/portafolios/data
+
+[Install]
+WantedBy=multi-user.target
