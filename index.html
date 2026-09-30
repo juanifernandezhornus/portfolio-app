@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Portafolios</title>
+<meta name="description" content="Seguimiento de portafolios con precios en vivo y comparación contra el S&amp;P 500 y Bitcoin.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
@@ -198,6 +199,11 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:60
 .authcard{width:100%;max-width:400px;padding:28px;display:flex;flex-direction:column;gap:16px}
 .authcard h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
 .authcard p{margin:0;color:var(--fg-2)}
+.sdot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--fg-3);vertical-align:middle}
+.sdot.github{background:var(--good)} .sdot.readonly{background:var(--warn)}
+ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--fg-2)}
+ol.steps a{color:var(--accent);font-weight:600}
+code{font-size:12px;background:var(--line);padding:1px 5px;border-radius:4px}
 .userbox{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 4px 0;border-top:1px solid var(--line);font-size:13px;color:var(--fg-2)}
 .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--fg-2);background:var(--panel);border:1px solid var(--line-2);border-radius:999px;padding:3px 10px}
 .live i{width:7px;height:7px;border-radius:50%;background:var(--good)}
@@ -213,25 +219,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:60
 </head>
 <body>
 
-<div id="auth" class="authwrap hide">
-  <div class="card authcard">
-    <h1>Portafolios</h1>
-    <p>Armá portafolios de práctica y seguí su rendimiento contra el S&amp;P 500 y Bitcoin con cotizaciones en vivo.</p>
-    <div class="tabsw" role="group" aria-label="Acceso">
-      <button type="button" class="buy" data-auth="login" aria-pressed="true">Ingresar</button>
-      <button type="button" class="buy" data-auth="register" aria-pressed="false">Crear cuenta</button>
-    </div>
-    <form id="authForm" style="display:flex;flex-direction:column;gap:12px" autocomplete="on">
-      <div class="fld"><label for="aUser">Usuario</label><input id="aUser" autocomplete="username" required></div>
-      <div class="fld"><label for="aPass">Contraseña</label><input id="aPass" type="password" autocomplete="current-password" required></div>
-      <div class="fld hide" id="inviteBox"><label for="aInvite">Código de invitación</label><input id="aInvite" autocomplete="off"></div>
-      <button class="btn" type="submit" id="authBtn">Ingresar</button>
-      <span class="msg" id="authMsg"></span>
-    </form>
-  </div>
-</div>
-
-<div class="shell hide" id="shell">
+<div class="shell" id="shell">
   <aside class="side-nav" aria-label="Portafolios">
     <h2>Mis portafolios</h2>
     <div class="pflist" id="pflist"></div>
@@ -241,17 +229,13 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:60
       <div class="row"><button class="btn sm" id="newpfSave">Crear</button><button class="btn ghost sm" id="newpfCancel">Cancelar</button></div>
       <span class="msg" id="newpfMsg"></span>
     </div>
-    <div class="userbox"><span id="userName"></span><button class="iconbtn" id="logoutBtn">Cerrar sesión</button></div>
+    <div class="userbox"><span id="syncState"></span><button class="iconbtn" id="syncBtn">Sincronizar</button></div>
   </aside>
 
   <main class="main">
+    <div id="roBanner" class="card note hide" style="padding:14px 18px">Estás viendo tus portafolios en modo lectura. Para editar desde este dispositivo, tocá “Sincronizar”.</div>
     <div id="loading" class="card empty">Cargando tus portafolios…</div>
     <div id="mainIn" class="hide" style="display:flex;flex-direction:column;gap:20px">
-      <section class="card hide" id="rankBox">
-        <div class="card-h" style="padding-bottom:8px"><h2>Ranking entre amigos</h2><span class="status">Portafolios públicos ordenados por rendimiento TWR</span></div>
-        <div class="tscroll"><table id="rankTable"></table></div>
-        <div class="note" style="padding-top:12px">Para que un portafolio tuyo aparezca acá, abrilo, tocá “Editar” y activá “Mostrar en el ranking”.</div>
-      </section>
       <div id="portView" style="display:flex;flex-direction:column;gap:20px">
       <section class="head">
         <div>
@@ -267,7 +251,6 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:60
       <div class="edit hide" id="editRow">
         <input id="renameIn" style="max-width:260px" aria-label="Nombre del portafolio">
         <button class="btn ghost sm" id="renameBtn">Renombrar</button>
-        <label class="switch"><input type="checkbox" id="pubChk">Mostrar en el ranking</label>
         <span style="flex:1"></span>
         <span id="delBox"><button class="btn ghost sm" id="delBtn">Eliminar portafolio</button></span>
         <span class="msg" id="pfMsg"></span>
@@ -349,12 +332,42 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:60
   </div>
 </div>
 
+
+<div class="overlay hide" id="syncModal" role="dialog" aria-modal="true" aria-labelledby="syncModalT">
+  <div class="modal">
+    <div class="modal-h"><h3 id="syncModalT">Tus datos</h3><button class="x" data-close aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <p style="margin:0" id="syncInfo"></p>
+      <div id="syncConnect" style="display:flex;flex-direction:column;gap:12px">
+        <p class="hint" style="font-size:13px">Para ver y editar los mismos portafolios en el celular y en la compu, guardalos en tu repo de GitHub. Se hace una vez por dispositivo:</p>
+        <ol class="steps">
+          <li>Abrí <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → nuevo token (fine-grained)</a>.</li>
+          <li>Token name: <b>portafolios</b>. Expiration: la que quieras (hasta 1 año).</li>
+          <li>Repository access: <b>Only select repositories</b> → <b id="repoName"></b>.</li>
+          <li>Permissions → Repository permissions → <b>Contents: Read and write</b>.</li>
+          <li>Tocá <b>Generate token</b>, copialo y pegalo acá abajo.</li>
+        </ol>
+        <div class="fld"><label for="tokIn">Token de GitHub</label><input id="tokIn" type="password" autocomplete="off" placeholder="github_pat_…"></div>
+        <div class="row"><button class="btn" id="tokSave">Conectar</button><span class="msg" id="tokMsg"></span></div>
+      </div>
+      <div id="syncOn" class="hide row"><span>Conectado a <b id="repoName2"></b>.</span><button class="btn ghost sm" id="tokOff">Desconectar este dispositivo</button></div>
+      <div class="row" style="border-top:1px solid var(--line);padding-top:14px">
+        <button class="btn ghost sm" id="expBtn">Descargar copia (.json)</button>
+        <label class="btn ghost sm" for="impFile" id="impLbl" style="cursor:pointer">Importar copia</label>
+        <input type="file" id="impFile" accept="application/json,.json" class="hide">
+      </div>
+      <div id="impConfirm" class="hide row"></div>
+      <p class="hint">Con GitHub conectado, los portafolios quedan en <code>data/portfolio.json</code> de tu repo, que es público: cualquiera con el link puede verlos, pero solo vos podés editarlos.</p>
+    </div>
+  </div>
+</div>
+
 <div class="overlay hide" id="pxModal" role="dialog" aria-modal="true" aria-labelledby="pxModalT">
   <div class="modal wide">
     <div class="modal-h"><h3 id="pxModalT">Cotizaciones</h3><button class="x" data-close aria-label="Cerrar">✕</button></div>
     <div class="tscroll"><table id="pxTable" style="min-width:560px"></table></div>
     <div class="modal-b" style="border-top:1px solid var(--line)">
-      <details id="pxAddBox"><summary>Cargar un precio a mano (solo lo ves vos)</summary>
+      <details id="pxAddBox"><summary>Cargar un precio a mano</summary>
         <div class="grid2" style="margin-top:12px">
           <div class="fld"><label for="pTicker">Ticker</label><input id="pTicker" list="tickerList" style="text-transform:uppercase" placeholder="SPY, BTC, MEP…"></div>
           <div class="fld"><label for="pDate">Fecha</label><input type="date" id="pDate"></div>
@@ -362,7 +375,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:60
         </div>
         <div class="row" style="margin-top:12px"><button class="btn sm" id="pSave">Guardar precio</button><span class="msg" id="pMsg"></span></div>
       </details>
-      <p class="hint">Los precios se actualizan solos: cripto cada 20 s y el resto cada minuto (Binance, Yahoo Finance, data912 y dolarapi). El precio manual sirve para activos sin cotización automática.</p>
+      <p class="hint">Se actualizan solos mientras tenés la página abierta: cripto cada 15 s (Binance o CoinGecko), el resto cada minuto (data912 y dolarapi). Los ETFs de EE.UU. que no cotizan en vivo usan el cierre diario de Yahoo Finance. El precio manual sirve para activos sin cotización automática.</p>
     </div>
   </div>
 </div>
@@ -375,7 +388,7 @@ const KINDS = {
   cedear:{label:"CEDEAR",cur:"ARS"}, accion_ar:{label:"Acción argentina",cur:"ARS"}, bono_ar:{label:"Bono argentino",cur:"ARS",per100:true},
   otro_usd:{label:"Otro (USD)",cur:"USD"}, otro_ars:{label:"Otro (ARS)",cur:"ARS"}
 };
-const BENCH = [{t:"SPY",name:"S&P 500 (SPY)",kind:"etf_us"},{t:"BTC",name:"Bitcoin",kind:"cripto"}];
+const BENCH = [{t:"VOO",name:"S&P 500 (VOO)",kind:"etf_us"},{t:"BTC",name:"Bitcoin",kind:"cripto"}];
 const SERIES = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
 const fmtUSD = new Intl.NumberFormat("es-AR",{style:"currency",currency:"USD",currencyDisplay:"code",minimumFractionDigits:2,maximumFractionDigits:2});
 const nf = (d)=>new Intl.NumberFormat("es-AR",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -400,7 +413,7 @@ const normT = t => String(t||"").trim().toUpperCase();
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
 /* ---------- state ---------- */
-let canWrite=true, me=null, lastSync=0, rankData=null;
+let canWrite=true;
 let portfolios=[], txs=[], prices={}; // prices[ticker] = {ticker,kind,points:{date:px}}
 let loaded={p:false,t:false,x:false};
 let view="all"; // "all" or portfolio id
@@ -509,10 +522,8 @@ let cacheAll={};
 function render(){
   if(!(loaded.p&&loaded.t&&loaded.x)) return;
   seriesCache={}; cacheAll={};
-  if(view!=="all" && view!=="rank" && !portfolios.some(p=>p.id===view)) view="all";
+  if(view!=="all" && !portfolios.some(p=>p.id===view)) view="all";
   $("loading").classList.add("hide"); $("mainIn").classList.remove("hide");
-  $("rankBox").classList.toggle("hide",view!=="rank"); $("portView").classList.toggle("hide",view==="rank");
-  if(view==="rank"){ portfolios.forEach(p=>cacheAll[p.id]=analyze(txs.filter(x=>x.pid===p.id))); renderSidebar(analyze(txs)); renderRanking(); renderPrices(txs); return; }
   fillFormSelects();
   portfolios.forEach(p=>cacheAll[p.id]=analyze(txs.filter(x=>x.pid===p.id)));
   const list=scopeTx(); const A= view==="all"? analyze(list) : cacheAll[view];
@@ -535,15 +546,14 @@ function renderSidebar(Aall){
     return `<button class="pfitem" data-v="${esc(v)}" aria-pressed="${view===v}"><span class="pfav" style="background:${color}">${esc(label)}</span><span class="pfmeta"><span class="pfname">${esc(name)}</span><span class="pfval">${val}${p!=null?" "+pctTxt(p):""}</span></span></button>`; };
   let h=item("all","Todos","var(--fg)",tot,"Σ");
   portfolios.forEach(p=>{ h+=item(p.id,p.name,pfColor(p.id),cacheAll[p.id],(p.name.trim()[0]||"?").toUpperCase()); });
-  h+=`<button class="pfitem" data-v="rank" aria-pressed="${view==="rank"}"><span class="pfav" style="background:var(--s4)">★</span><span class="pfmeta"><span class="pfname">Ranking entre amigos</span><span class="pfval">Portafolios públicos</span></span></button>`;
-  $("pflist").innerHTML=h; $("userName").textContent=me?("@"+me):"";
+  $("pflist").innerHTML=h;
   $("addPf").classList.toggle("hide",!canWrite);
 }
 
 function renderHead(A,pf){
   $("pfTitle").textContent = pf? pf.name : "Todos los portafolios";
   $("editBtn").classList.toggle("hide",!pf||!canWrite);
-  if(!pf) $("editRow").classList.add("hide"); else { $("renameIn").value=pf.name; $("pubChk").checked=!!pf.public; }
+  if(!pf) $("editRow").classList.add("hide"); else { $("renameIn").value=pf.name; }
   $("actions").classList.toggle("hide",!canWrite||!portfolios.length);
   if(A.empty){ $("bal").textContent="US$ 0,00";
     $("balsub").innerHTML=`<span class="muted" style="font-weight:500">${portfolios.length? "Cargá tu primera operación con “+ Agregar operación”." : "Creá tu primer portafolio en la columna de la izquierda."}</span>`; return; }
@@ -616,7 +626,7 @@ function renderCompare(){
   for(const p of portfolios){ const A=cacheAll[p.id];
     const nm=`<div class="asset"><span class="av" style="background:${pfColor(p.id)};border-radius:8px">${esc((p.name.trim()[0]||"?").toUpperCase())}</span><div class="n"><b>${esc(p.name)}</b></div></div>`;
     if(A.empty){ h+=`<tr><td>${nm}</td><td colspan="7" class="muted" style="text-align:left">Sin operaciones</td></tr>`; continue; }
-    const s=A.bench.SPY.tot, b=A.bench.BTC.tot;
+    const s=A.bench.VOO.tot, b=A.bench.BTC.tot;
     h+=`<tr><td>${nm}</td><td>${usd(A.value)}</td><td>${usd(A.net)}</td>
       <td><div class="two"><span class="${cls(A.pnl)}">${signedUSD(A.pnl)}</span><small class="${cls(A.pnl)}">${pct(A.invested?A.pnl/A.invested:null)}</small></div></td>
       <td>${pctTxt(A.twrTot)}</td><td class="${cls(s==null?null:A.twrTot-s)}">${s==null?"—":pp(A.twrTot-s)}</td><td class="${cls(b==null?null:A.twrTot-b)}">${b==null?"—":pp(A.twrTot-b)}</td><td>${fmtDate(A.d0)}</td></tr>`;
@@ -631,16 +641,16 @@ function renderChart(A){
   if(chartMode==="cmp"){
     $("chartTitle").textContent="Rendimiento por portafolio";
     portfolios.forEach(p=>{ const B=cacheAll[p.id]; if(!B.empty) S.push({name:p.name,color:pfColor(p.id),pts:rebase(cutRange(B.twr))}); });
-    if(!A.empty&&!A.bench.SPY.none) S.push({name:"S&P 500",color:"var(--fg-3)",dash:true,pts:rebase(cutRange(A.bench.SPY.idx))});
+    if(!A.empty&&!A.bench.VOO.none) S.push({name:"S&P 500",color:"var(--fg-3)",dash:true,pts:rebase(cutRange(A.bench.VOO.idx))});
     yFmt=v=>nf(0).format(v); base=100;
     notes.push("Base 100 al inicio del período. Cada línea es el TWR del portafolio.");
   } else if(chartMode==="usd"){
     $("chartTitle").textContent="Valor vs mismos aportes en el benchmark";
     if(!A.empty){ S.push({name:"Tu portafolio",color:"var(--accent)",area:true,pts:cutRange(A.val)});
-      if(!A.bench.SPY.none) S.push({name:"Mismos aportes en S&P 500",color:"var(--s2)",pts:cutRange(A.bench.SPY.val)});
+      if(!A.bench.VOO.none) S.push({name:"Mismos aportes en S&P 500",color:"var(--s2)",pts:cutRange(A.bench.VOO.val)});
       if(!A.bench.BTC.none) S.push({name:"Mismos aportes en BTC",color:"var(--s3)",pts:cutRange(A.bench.BTC.val)});
       S.push({name:"Aportado neto",color:"var(--fg-3)",dash:true,step:true,pts:cutRange(A.flows)});
-      const sv=A.bench.SPY.valNow, bv=A.bench.BTC.valNow;
+      const sv=A.bench.VOO.valNow, bv=A.bench.BTC.valNow;
       if(sv!=null) tl.innerHTML+=`<span class="it"><i style="background:var(--s2)"></i>En S&amp;P 500 tendrías <b>${usd(sv)}</b> <span class="${cls(A.value-sv)}">(${signedUSD(A.value-sv)} a tu favor)</span></span>`;
       if(bv!=null) tl.innerHTML+=`<span class="it"><i style="background:var(--s3)"></i>En BTC tendrías <b>${usd(bv)}</b> <span class="${cls(A.value-bv)}">(${signedUSD(A.value-bv)} a tu favor)</span></span>`;
     }
@@ -648,7 +658,7 @@ function renderChart(A){
   } else {
     $("chartTitle").textContent="Rendimiento vs S&P 500 y BTC";
     if(!A.empty){ S.push({name:"Tu portafolio",color:"var(--accent)",area:true,pts:rebase(cutRange(A.twr))});
-      if(!A.bench.SPY.none) S.push({name:"S&P 500 (SPY)",color:"var(--s2)",pts:rebase(cutRange(A.bench.SPY.idx))});
+      if(!A.bench.VOO.none) S.push({name:"S&P 500 (VOO)",color:"var(--s2)",pts:rebase(cutRange(A.bench.VOO.idx))});
       if(!A.bench.BTC.none) S.push({name:"Bitcoin",color:"var(--s3)",pts:rebase(cutRange(A.bench.BTC.idx))});
       const lastOf=pts=>{ const q=pts.filter(p=>p[1]!=null); return q.length? q[q.length-1][1]/100-1 : null; };
       S.forEach(s=>{ const v=lastOf(s.pts); if(v!=null) tl.innerHTML+=`<span class="it"><i style="background:${s.color}"></i>${esc(s.name)} <b>${pctTxt(v)}</b></span>`; });
@@ -695,44 +705,32 @@ function liveBadge(A){
 }
 function renderPrices(list){
   const keep={}; document.querySelectorAll("#pxTable input").forEach(i=>{ if(i.value) keep[i.id]=i.value; });
-  const set=new Set(); (view==="all"||view==="rank"?txs:list).forEach(x=>{ if(x.qty) set.add(x.ticker); });
+  const set=new Set(); (view==="all"?txs:list).forEach(x=>{ if(x.qty) set.add(x.ticker); });
   const held=[...set].sort();
   const anyARS=held.some(t=>curOf(t)==="ARS");
   const order=[...held, ...BENCH.map(b=>b.t).filter(t=>!set.has(t)), ...(anyARS?["MEP"]:[])];
-  let h=`<thead><tr><th>Activo</th><th>Precio</th><th>24 h</th><th>Fuente</th><th>Estado</th><th></th></tr></thead><tbody>`;
+  let h=`<thead><tr><th>Activo</th><th>Precio</th><th>24 h</th><th>Fuente</th><th>Estado</th>${canWrite?"<th></th>":""}</tr></thead><tbody>`;
   for(const t of order){ const P=prices[t]||{}; const L=P.live||{}; const lp=lastPt(t); const isB=BENCH.some(b=>b.t===t)&&!set.has(t);
     const kind=t==="MEP"?null:kindOf(t); const cur=t==="MEP"?"ARS":curOf(t); const sym=cur==="ARS"?"$ ":"US$ ";
-    const px=L.px!=null?L.px:(lp?lp[1]:null);
+    const px= L.px>0? L.px : (lp?lp[1]:null);
     const fresh=L.updated&&Date.now()/1000-L.updated<180;
-    const st= L.px&&L.updated ? `<span class="chip ${fresh?"good":"warn"}">${fresh?"En vivo":"Demorado"}</span> <span class="muted" style="font-size:12px">${ago(L.updated)}</span>` : lp? `<span class="chip warn">Manual · ${fmtDate(lp[0])}</span>` : `<span class="chip bad">Sin cotización</span>`;
-    const manual = t!=="MEP" && (String(kind||"").startsWith("otro") || !L.px);
+    const mp=(DATA.manual||{})[t]; const lastManual=mp? Object.keys(mp).sort().pop() : null;
+    let st, src;
+    if(L.px>0){ st=`<span class="chip ${fresh?"good":"warn"}">${fresh?"En vivo":"Demorado"}</span> <span class="muted" style="font-size:12px">${ago(L.updated)}</span>`; src=L.source; }
+    else if(lp && lastManual===lp[0]){ st=`<span class="chip flat">Manual · ${fmtDate(lp[0])}</span>`; src="Manual"; }
+    else if(lp){ st=`<span class="chip flat">Cierre · ${fmtDate(lp[0])}</span>`; src=P.histSource||"Operación"; }
+    else { st=`<span class="chip bad">Sin cotización</span>`; src="—"; }
+    const manual = canWrite && t!=="MEP" && !(L.px>0);
     h+=`<tr><td><div class="asset">${avatar(t)}<div class="n"><b>${esc(t)}</b><span>${t==="MEP"?"Dólar MEP":isB?"Benchmark":esc((KINDS[kind]||{}).label||"")}${multOf(t)<1?" · c/100 VN":""}</span></div></div></td>
-      <td>${px!=null?sym+pxFmt(px):"—"}</td><td>${L.chg24!=null?pctTxt(L.chg24):"—"}</td><td>${esc(L.source||"—")}</td><td>${st}</td>
-      <td>${manual?`<div class="row" style="justify-content:flex-end"><input class="pxin" id="px_${esc(docId(t))}" inputmode="decimal" placeholder="Precio ${cur}"><button class="btn ghost sm" data-savepx="${esc(t)}">Guardar</button></div>`:""}</td></tr>`; }
+      <td>${px!=null?sym+pxFmt(px):"—"}</td><td>${L.chg24!=null?pctTxt(L.chg24):"—"}</td><td>${esc(src||"—")}</td><td>${st}</td>
+      ${canWrite?`<td>${manual?`<div class="row" style="justify-content:flex-end"><input class="pxin" id="px_${esc(docId(t))}" inputmode="decimal" placeholder="Precio ${cur}"><button class="btn ghost sm" data-savepx="${esc(t)}">Guardar</button></div>`:""}</td>`:""}</tr>`; }
   $("pxTable").innerHTML=h+"</tbody>";
   for(const id in keep){ const i=document.getElementById(id); if(i) i.value=keep[id]; }
-  $("tickerList").innerHTML=[...new Set([...txs.map(x=>x.ticker),...Object.keys(prices).filter(t=>t!=="MEP"),"SPY","BTC"])].sort().map(t=>`<option value="${esc(t)}">`).join("");
+  $("pxAddBox").classList.toggle("hide",!canWrite);
+  $("tickerList").innerHTML=[...new Set([...txs.map(x=>x.ticker),...Object.keys(prices).filter(t=>t!=="MEP"),"VOO","BTC"])].sort().map(t=>`<option value="${esc(t)}">`).join("");
 }
 
-/* ---------- ranking ---------- */
 function normTx(o){ o.qty=Number(o.qty); o.price=Number(o.price); o.fee=Number(o.fee||0); if(o.fx!=null) o.fx=Number(o.fx); return o; }
-function renderRanking(){
-  const t=$("rankTable");
-  if(!rankData){ t.innerHTML=`<tr><td class="empty" style="text-align:center">Cargando ranking…</td></tr>`; return; }
-  const sv={txs,prices,seriesCache};
-  txs=rankData.txs.map(o=>normTx(Object.assign({},o))); prices=rankData.prices; seriesCache={};
-  let rows=[];
-  try{ rows=rankData.portfolios.map(p=>({p,A:analyze(txs.filter(x=>x.pid===p.id))})).filter(r=>!r.A.empty); }
-  finally{ txs=sv.txs; prices=sv.prices; seriesCache={}; }
-  rows.sort((a,b)=>b.A.twrTot-a.A.twrTot);
-  if(!rows.length){ t.innerHTML=`<tr><td class="empty" style="text-align:center">Todavía nadie publicó un portafolio con operaciones.</td></tr>`; return; }
-  let h=`<thead><tr><th>Portafolio</th><th>Dueño</th><th>TWR</th><th>vs S&amp;P 500</th><th>vs BTC</th><th>Ganancia %</th><th>Activos</th><th>Desde</th></tr></thead><tbody>`;
-  rows.forEach((r,i)=>{ const A=r.A, s=A.bench.SPY.tot, b=A.bench.BTC.tot; const n=A.rows.filter(x=>!x.closed).length;
-    h+=`<tr><td><div class="asset"><span class="rank">${i+1}</span><div class="n"><b>${esc(r.p.name)}</b></div></div></td><td>@${esc(r.p.owner)}</td>
-      <td>${pctTxt(A.twrTot)}</td><td class="${cls(s==null?null:A.twrTot-s)}">${s==null?"—":pp(A.twrTot-s)}</td><td class="${cls(b==null?null:A.twrTot-b)}">${b==null?"—":pp(A.twrTot-b)}</td>
-      <td>${pctTxt(A.invested?A.pnl/A.invested:null)}</td><td>${n}</td><td>${fmtDate(A.d0)}</td></tr>`; });
-  t.innerHTML=h+"</tbody>";
-}
 
 /* ---------- modals ---------- */
 let lastFocus=null;
@@ -841,24 +839,24 @@ async function saveTx(ev){
     qty:parseNum($("fQty").value), price:parseNum($("fPrice").value), fee:parseNum($("fFee").value)||0, created:Date.now()};
   if(K.cur==="ARS") x.fx=parseNum($("fFx").value);
   const err = !x.pid?"Elegí un portafolio.": !x.ticker?"Falta el ticker.": !/^[A-Z0-9._\-]{1,20}$/.test(x.ticker)?"El ticker solo admite letras, números, punto o guion.":
-    !(x.qty>0)?"La cantidad tiene que ser mayor a cero.": !(x.price>0)?"El precio tiene que ser mayor a cero.": (K.cur==="ARS"&&!(x.fx>0))?"Cargá el dólar MEP de ese día.": x.date>TODAY?"La fecha no puede ser futura.":null;
+    x.ticker==="MEP"?"MEP no se puede usar como ticker.": !(x.qty>0)?"La cantidad tiene que ser mayor a cero.": !(x.price>0)?"El precio tiene que ser mayor a cero.": (K.cur==="ARS"&&!(x.fx>0))?"Cargá el dólar MEP de ese día.": x.date>TODAY?"La fecha no puede ser futura.":null;
   if(err){ msg.classList.add("err"); msg.textContent=err; return; }
   if(side==="sell"){ const held=sortTx(txs.filter(t=>t.pid===x.pid&&t.ticker===x.ticker&&t.date<=x.date)).reduce((s,t)=>s+(t.side==="buy"?t.qty:-t.qty),0);
     if(x.qty>held+1e-9){ msg.classList.add("err"); msg.textContent=`Solo tenés ${qtyFmt(held)} ${x.ticker} a esa fecha en este portafolio.`; return; } }
   $("txSave").disabled=true;
   try{
-    const body={pid:x.pid,date:x.date,side:x.side,ticker:x.ticker,kind:x.kind,qty:x.qty,price:x.price,fee:x.fee}; if(x.fx) body.fx=x.fx;
-    await api("/api/txs",{method:"POST",body});
+    const rec={id:"t"+uid(),pid:x.pid,date:x.date,side:x.side,ticker:x.ticker,kind:x.kind,qty:x.qty,price:x.price,fee:x.fee,fx:x.fx||null,created:Date.now()};
+    await mutate(d=>{ if(!d.portfolios.some(p=>p.id===rec.pid)) throw new Error("Ese portafolio ya no existe."); d.txs.push(rec); }, `${x.side==="buy"?"Compra":"Venta"} ${x.ticker}`);
     msg.classList.add("ok"); msg.textContent=`${side==="buy"?"Compra":"Venta"} de ${x.ticker} guardada.`;
     ["fQty","fPrice","fAmt","fFee"].forEach(i=>$(i).value=""); lastEdited=[]; updatePreview(); setTimeout(()=>{ closeModal(); $("txMsg").textContent=""; },900);
-    loadState(); setTimeout(()=>loadState().catch(()=>{}),4000);
+    refreshLive(true);
   }catch(e){ msg.classList.add("err"); msg.textContent = e.message||"No se pudo guardar. Probá de nuevo en unos segundos."; }
   $("txSave").disabled=false;
 }
 
 async function savePrice(t,d,v,msgEl){
   t=normT(t); if(!t||!(v>0)){ if(msgEl){msgEl.className="msg err"; msgEl.textContent="Cargá ticker y precio.";} return false; }
-  try{ await api("/api/manual_prices",{method:"POST",body:{ticker:t,date:d,px:v}}); if(msgEl){msgEl.className="msg ok"; msgEl.textContent=`${t}: ${pxFmt(v)} al ${fmtDate(d)} guardado.`;} await loadState(); return true; }
+  try{ await mutate(dd=>{ (dd.manual[t]||(dd.manual[t]={}))[d]=v; },`Precio manual ${t}`); if(msgEl){msgEl.className="msg ok"; msgEl.textContent=`${t}: ${pxFmt(v)} al ${fmtDate(d)} guardado.`;} return true; }
   catch(e){ if(msgEl){msgEl.className="msg err"; msgEl.textContent=e.message||"No se pudo guardar el precio.";} return false; }
 }
 
@@ -868,12 +866,13 @@ function fetchQuote(){ clearTimeout(qTimer); qTimer=setTimeout(async()=>{
   const t=normT($("fTicker").value), k=$("fKind").value, el=$("mktLine"); lastQuote=null;
   if(!t||!/^[A-Z0-9._\-]{1,20}$/.test(t)){ el.textContent=""; return; }
   el.textContent="Buscando cotización…";
-  try{ const j=await api(`/api/quote?ticker=${encodeURIComponent(t)}&kind=${encodeURIComponent(k)}`);
+  try{ const j=await quote(t,k);
     if(normT($("fTicker").value)!==t||$("fKind").value!==k) return;
+    if(!j){ el.textContent = US_KINDS.has(k)? "Sin cotización en vivo para ese ticker (algunos ETFs de EE.UU. solo tienen cierre diario). Cargá el precio a mano." : "Sin cotización automática para ese ticker y tipo: revisá el ticker o cargá el precio a mano."; return; }
     lastQuote=j; const cur=formKind().cur;
     el.innerHTML=`Mercado ahora: <b>${cur==="ARS"?"$ ":"US$ "}${pxFmt(j.px)}</b> · ${esc(j.source||"")}${j.chg24!=null?" · 24 h "+pctTxt(j.chg24):""} <button type="button" class="linkbtn" id="useMkt">Usar este precio</button>`;
     if(!$("fPrice").value && ($("fDate").value||TODAY)===TODAY) useMarket();
-  }catch(e){ el.textContent = e.code===404? "Sin cotización automática para ese ticker y tipo: cargá el precio a mano." : ""; }
+  }catch(e){ el.textContent=""; }
  },450); }
 function useMarket(){ if(!lastQuote) return; const v=lastQuote.px, d=v>=100?2:v>=1?4:8; $("fPrice").value=String(+v.toFixed(d)).replace(".",","); touch("p"); recalc(); }
 
@@ -882,15 +881,26 @@ document.addEventListener("click", async ev=>{
   const b=ev.target.closest("button"); if(!b) return;
   if(b.hasAttribute("data-close")){ closeModal(); return; }
   if(b.id==="useMkt"){ useMarket(); return; }
-  if(b.dataset.auth){ authMode=b.dataset.auth; document.querySelectorAll("[data-auth]").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("inviteBox").classList.toggle("hide",authMode!=="register");
-    $("authBtn").textContent=authMode==="register"?"Crear cuenta":"Ingresar"; $("aPass").autocomplete=authMode==="register"?"new-password":"current-password"; $("authMsg").textContent=""; return; }
-  if(b.id==="logoutBtn"){ try{ await api("/api/logout",{method:"POST",body:{}}); }catch(e){} showAuth(); return; }
-  if(b.dataset.v){ view=b.dataset.v; try{localStorage.setItem("pf_view",view);}catch(e){} pendingDel=null; $("editRow").classList.add("hide"); if(view==="rank") loadRanking(); render(); return; }
+  if(b.id==="syncBtn"){ openSync(); return; }
+  if(b.id==="tokSave"){ const tok=$("tokIn").value.trim(), m=$("tokMsg"); m.className="msg";
+    if(!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(tok)){ m.className="msg err"; m.textContent="Ese texto no parece un token de GitHub (empieza con github_pat_)."; return; }
+    b.disabled=true; m.textContent="Conectando…";
+    try{ const r=await connectGitHub(tok); $("tokIn").value=""; m.className="msg ok"; m.textContent= r==="remote"?"Listo: cargué los portafolios guardados en GitHub.":"Listo: tus portafolios quedaron guardados en GitHub."; openSync(); }
+    catch(e){ m.className="msg err"; m.textContent=e.message; }
+    b.disabled=false; return; }
+  if(b.id==="tokOff"){ lsDel(LS_TOKEN); mode="local"; ghSha=null; syncErr=""; renderSync(); applyData(DATA); openSync(); return; }
+  if(b.id==="expBtn"){ exportData(); return; }
+  if(b.id==="impNo"){ pendingImport=null; $("impConfirm").classList.add("hide"); return; }
+  if(b.id==="impYes"){ if(!pendingImport) return; const imp=pendingImport; b.disabled=true;
+    try{ await mutate(d=>{ d.portfolios=imp.portfolios; d.txs=imp.txs; d.manual=imp.manual; },"Importar copia"); $("impConfirm").innerHTML=`<span class="msg ok">Copia importada.</span>`; pendingImport=null; }
+    catch(e){ $("impConfirm").innerHTML=`<span class="msg err">${esc(e.message)}</span>`; }
+    return; }
+  if(b.dataset.v){ view=b.dataset.v; try{localStorage.setItem("pf_view",view);}catch(e){} pendingDel=null; $("editRow").classList.add("hide"); render(); return; }
   if(b.id==="addPf"){ $("newpfBox").classList.remove("hide"); b.classList.add("hide"); $("newpfName").focus(); return; }
   if(b.id==="newpfCancel"){ $("newpfBox").classList.add("hide"); $("addPf").classList.remove("hide"); return; }
   if(b.id==="newpfSave"){ const n=$("newpfName").value.trim(); if(!n){ $("newpfMsg").className="msg err"; $("newpfMsg").textContent="Poné un nombre."; return; }
     b.disabled=true;
-    try{ const r=await api("/api/portfolios",{method:"POST",body:{name:n}}); view=r.id; await loadState(); try{localStorage.setItem("pf_view",view);}catch(e){}
+    try{ if(portfolios.length>=30) throw new Error("Llegaste al máximo de 30 portafolios."); const id="p"+uid(); await mutate(d=>{ d.portfolios.push({id,name:n.slice(0,60),created:Date.now()}); },`Nuevo portafolio: ${n}`); view=id; render(); try{localStorage.setItem("pf_view",view);}catch(e){}
       $("newpfName").value=""; $("newpfBox").classList.add("hide"); $("addPf").classList.remove("hide"); $("newpfMsg").textContent=""; }
     catch(e){ $("newpfMsg").className="msg err"; $("newpfMsg").textContent=e.message||"No se pudo crear."; }
     b.disabled=false; return; }
@@ -902,14 +912,14 @@ document.addEventListener("click", async ev=>{
   if(b.dataset.r){ chartRange=b.dataset.r; document.querySelectorAll("#rangeSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b)); render(); return; }
   if(b.dataset.del){ pendingDel=b.dataset.del; renderTx(scopeTx()); return; }
   if(b.hasAttribute("data-del-no")){ pendingDel=null; renderTx(scopeTx()); return; }
-  if(b.dataset.delYes){ const id=b.dataset.delYes; b.disabled=true; try{ await api("/api/txs/"+encodeURIComponent(id),{method:"DELETE"}); }catch(e){} pendingDel=null; await loadState(); return; }
+  if(b.dataset.delYes){ const id=b.dataset.delYes; b.disabled=true; try{ await mutate(d=>{ d.txs=d.txs.filter(x=>x.id!==id); },"Borrar operación"); }catch(e){ $("txCount").textContent=e.message; } pendingDel=null; renderTx(scopeTx()); return; }
   if(b.dataset.savepx){ const t=b.dataset.savepx; const inp=document.getElementById("px_"+docId(t)); const v=parseNum(inp&&inp.value);
     if(!(v>0)){ inp&&inp.focus(); return; } b.disabled=true; b.textContent="Guardando…"; if(inp) inp.value=""; await savePrice(t,TODAY,v,null); return; }
   if(b.id==="pSave"){ await savePrice($("pTicker").value,$("pDate").value||TODAY,parseNum($("pPx").value),$("pMsg")); $("pPx").value=""; return; }
-  if(b.id==="renameBtn"){ const n=$("renameIn").value.trim(); if(!n) return; try{ await api("/api/portfolios/"+encodeURIComponent(view),{method:"PATCH",body:{name:n}}); await loadState(); $("pfMsg").className="msg ok"; $("pfMsg").textContent="Nombre actualizado."; }catch(e){ $("pfMsg").className="msg err"; $("pfMsg").textContent="No se pudo renombrar."; } return; }
+  if(b.id==="renameBtn"){ const n=$("renameIn").value.trim(); if(!n) return; const pid=view; try{ await mutate(d=>{ const p=d.portfolios.find(p=>p.id===pid); if(p) p.name=n.slice(0,60); },`Renombrar portafolio: ${n}`); $("pfMsg").className="msg ok"; $("pfMsg").textContent="Nombre actualizado."; }catch(e){ $("pfMsg").className="msg err"; $("pfMsg").textContent="No se pudo renombrar."; } return; }
   if(b.id==="delBtn"){ const n=txs.filter(x=>x.pid===view).length; $("delBox").innerHTML=`<span class="msg err">Se borran el portafolio y sus ${n} operaciones.</span> <button class="btn danger sm" id="delYes">Eliminar</button> <button class="btn ghost sm" id="delNo">Cancelar</button>`; return; }
   if(b.id==="delNo"){ $("delBox").innerHTML=`<button class="btn ghost sm" id="delBtn">Eliminar portafolio</button>`; return; }
-  if(b.id==="delYes"){ const id=view; b.disabled=true; try{ await api("/api/portfolios/"+encodeURIComponent(id),{method:"DELETE"}); }catch(e){} view="all"; await loadState(); $("delBox").innerHTML=`<button class="btn ghost sm" id="delBtn">Eliminar portafolio</button>`; $("editRow").classList.add("hide"); render(); return; }
+  if(b.id==="delYes"){ const id=view; b.disabled=true; try{ await mutate(d=>{ d.portfolios=d.portfolios.filter(p=>p.id!==id); d.txs=d.txs.filter(x=>x.pid!==id); },"Eliminar portafolio"); view="all"; }catch(e){ $("pfMsg").className="msg err"; $("pfMsg").textContent=e.message; } render(); $("delBox").innerHTML=`<button class="btn ghost sm" id="delBtn">Eliminar portafolio</button>`; $("editRow").classList.add("hide"); render(); return; }
 });
 $("txForm").addEventListener("submit",saveTx);
 $("fQty").addEventListener("input",()=>{touch("q");recalc();});
@@ -918,49 +928,241 @@ $("fAmt").addEventListener("input",()=>{touch("a");recalc();});
 $("fFx").addEventListener("input",updatePreview);
 $("fKind").addEventListener("change",()=>{ $("fFx").value=""; syncFormLabels(); recalc(); fetchQuote(); });
 $("fTicker").addEventListener("input",()=>{ $("mktLine").textContent=""; });
-$("pubChk").addEventListener("change",async e=>{ try{ await api("/api/portfolios/"+encodeURIComponent(view),{method:"PATCH",body:{public:e.target.checked}}); await loadState(); $("pfMsg").className="msg ok"; $("pfMsg").textContent=e.target.checked?"Ahora aparece en el ranking.":"Ya no aparece en el ranking."; }catch(err){ e.target.checked=!e.target.checked; } });
-$("authForm").addEventListener("submit",doAuth);
 $("fDate").addEventListener("change",()=>{ if(formKind().cur==="ARS"){ $("fFx").value=""; syncFormLabels(); } });
 $("fTicker").addEventListener("change",()=>{ const t=normT($("fTicker").value); $("fTicker").value=t; const k=prices[t]&&prices[t].kind || (txs.find(x=>x.ticker===t)||{}).kind || (BENCH.find(b=>b.t===t)||{}).kind;
   if(k){ $("fKind").value=k; syncFormLabels(); } fetchQuote(); });
+$("impFile").addEventListener("change",async e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=""; if(!f) return; const box=$("impConfirm"); box.classList.remove("hide");
+  try{ const imp=normalizeData(JSON.parse(await f.text())); if(!imp.portfolios.length) throw new Error("El archivo no tiene portafolios.");
+    pendingImport=imp; box.innerHTML=`<span>Esto reemplaza tus datos por ${imp.portfolios.length} portafolio(s) y ${imp.txs.length} operación(es) del archivo.</span><button class="btn danger sm" id="impYes">Reemplazar</button><button class="btn ghost sm" id="impNo">Cancelar</button>`; }
+  catch(err){ pendingImport=null; box.innerHTML=`<span class="msg err">No pude leer ese archivo: ${esc(err.message)}</span>`; } });
 $("newpfName").addEventListener("keydown",e=>{ if(e.key==="Enter") $("newpfSave").click(); });
 let rsT, lastW=window.innerWidth; window.addEventListener("resize",()=>{ clearTimeout(rsT); rsT=setTimeout(()=>{ if(window.innerWidth!==lastW){ lastW=window.innerWidth; render(); } },150); });
 $("fDate").value=TODAY; $("pDate").value=TODAY; $("fDate").max=TODAY; $("pDate").max=TODAY;
 fillFormSelects(); $("fKind").value="cripto"; syncFormLabels();
 
-/* ---------- data ---------- */
-let authMode="login";
-async function api(path,opt={}){
-  const r=await fetch(path,{method:opt.method||"GET",headers:{"Content-Type":"application/json"},body:opt.body!==undefined?JSON.stringify(opt.body):(opt.method&&opt.method!=="GET"?"{}":undefined),credentials:"same-origin"});
-  let j=null; try{ j=await r.json(); }catch(e){}
-  if(r.status===401&&!opt.noAuth){ showAuth(); const e=new Error("Iniciá sesión"); e.code=401; throw e; }
-  if(!r.ok){ const e=new Error(j&&typeof j.detail==="string"? j.detail : "No se pudo completar la operación."); e.code=r.status; throw e; }
-  return j;
+/* ---------- data: storage (navegador + GitHub) ---------- */
+const LS_DATA="pf_data_v1", LS_TOKEN="pf_gh_token_v1", LS_HIST="pf_hist_v1", LS_BACKUP="pf_data_backup_v1";
+const GH=(()=>{ const h=location.hostname; if(h.endsWith(".github.io")){ const seg=location.pathname.split("/").filter(Boolean)[0]; return {owner:h.split(".")[0], repo:seg||h}; } return {owner:"juanifernandezhornus",repo:"portfolio-app"}; })();
+const DATA_PATH="data/portfolio.json", HIST_PATH="data/history.json";
+let DATA=emptyData(), mode="local", ghSha=null, syncErr="";
+let HIST={}, EXT_HIST={}, LIVE={};
+function emptyData(){ return {version:1,portfolios:[],txs:[],manual:{}}; }
+function lsGet(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+function token(){ try{ return localStorage.getItem(LS_TOKEN)||""; }catch(e){ return ""; } }
+const isDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||""));
+function normalizeData(d){
+  const o=emptyData(); if(!d||typeof d!=="object") return o;
+  o.portfolios=(Array.isArray(d.portfolios)?d.portfolios:[]).filter(p=>p&&p.id&&p.name).map(p=>({id:String(p.id),name:String(p.name).slice(0,60),created:Number(p.created)||0}));
+  const ids=new Set(o.portfolios.map(p=>p.id));
+  o.txs=(Array.isArray(d.txs)?d.txs:[]).filter(x=>x&&ids.has(x.pid)&&KINDS[x.kind]&&(x.side==="buy"||x.side==="sell")&&isDate(x.date)&&Number(x.qty)>0&&Number(x.price)>0)
+    .map(x=>({id:String(x.id||("t"+uid())),pid:x.pid,date:x.date,side:x.side,ticker:normT(x.ticker),kind:x.kind,qty:Number(x.qty),price:Number(x.price),fx:Number(x.fx)>0?Number(x.fx):null,fee:Number(x.fee)||0,created:Number(x.created)||0}));
+  const m=d.manual&&typeof d.manual==="object"?d.manual:{};
+  for(const t in m){ if(!m[t]||typeof m[t]!=="object") continue; const pts={}; for(const k in m[t]){ const v=Number(m[t][k]); if(isDate(k)&&v>0) pts[k]=v; } if(Object.keys(pts).length) o.manual[normT(t)]=pts; }
+  return o;
 }
-function showAuth(){ me=null; $("shell").classList.add("hide"); $("auth").classList.remove("hide"); }
-function showApp(){ $("auth").classList.add("hide"); $("shell").classList.remove("hide"); }
-async function doAuth(ev){
-  ev.preventDefault(); const msg=$("authMsg"); msg.className="msg"; msg.textContent="";
-  const body={username:$("aUser").value.trim(),password:$("aPass").value};
-  if(authMode==="register") body.invite=$("aInvite").value.trim();
-  $("authBtn").disabled=true;
-  try{ const j=await api(authMode==="register"?"/api/register":"/api/login",{method:"POST",body,noAuth:true}); me=j.username; $("aPass").value=""; showApp(); await loadState(); }
-  catch(e){ msg.className="msg err"; msg.textContent=e.message; }
-  $("authBtn").disabled=false;
+function b64enc(str){ const bytes=new TextEncoder().encode(str); let s=""; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s); }
+function b64dec(b){ const bin=atob(String(b||"").replace(/\s/g,"")); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new TextDecoder().decode(u); }
+function ghError(status,write){ const e=new Error(status===401?"El token de GitHub no es válido o venció.": (status===403||status===404)&&write?"El token no tiene permiso para escribir en el repo (tiene que tener Contents: Read and write).": status===403?"GitHub limitó los pedidos por un rato. Probá en unos minutos.":"No se pudo conectar con GitHub."); e.status=status; return e; }
+async function ghGet(path,tok){
+  const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}?ref=main`,{headers:Object.assign({Accept:"application/vnd.github+json"},tok?{Authorization:"Bearer "+tok}:{}),cache:"no-store"});
+  if(r.status===404) return {sha:null,data:null};
+  if(!r.ok) throw ghError(r.status,false);
+  const j=await r.json(); return {sha:j.sha,data:JSON.parse(b64dec(j.content))};
 }
-async function loadState(){
-  const j=await api("/api/state");
-  me=j.user; portfolios=j.portfolios; txs=j.txs.map(normTx); prices=j.prices;
-  loaded={p:true,t:true,x:true}; lastSync=Date.now(); showApp(); render();
+async function ghPut(data,sha,msg){
+  const body={message:msg,content:b64enc(JSON.stringify(data,null,1)),branch:"main"}; if(sha) body.sha=sha;
+  const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${DATA_PATH}`,{method:"PUT",headers:{Accept:"application/vnd.github+json",Authorization:"Bearer "+token(),"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok) throw ghError(r.status,true);
+  return (await r.json()).content.sha;
 }
-async function loadRanking(){ try{ rankData=await api("/api/ranking"); if(view==="rank") renderRanking(); }catch(e){} }
-async function tick(){ if(document.hidden||!me) return; try{ await loadState(); if(view==="rank") await loadRanking(); }catch(e){} }
-setInterval(tick,15000);
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tick(); });
-(async function boot(){
-  try{ const j=await api("/api/me",{noAuth:true}); me=j.username; await loadState(); if(view==="rank") loadRanking(); }
-  catch(e){ showAuth(); }
-})();
+async function rawGet(path){ const r=await fetch(`https://raw.githubusercontent.com/${GH.owner}/${GH.repo}/main/${path}?v=${Math.floor(Date.now()/60000)}`); if(r.status===404) return null; if(!r.ok) throw new Error("raw "+r.status); return r.json(); }
+
+function applyData(d,persist=true){
+  DATA=d; if(persist) lsSet(LS_DATA,d);
+  portfolios=d.portfolios.slice().sort((a,b)=>(a.created||0)-(b.created||0));
+  txs=d.txs.map(x=>normTx(Object.assign({},x)));
+  buildPrices(); loaded={p:true,t:true,x:true}; render(); ensureHistory();
+}
+async function mutate(fn,msg){
+  if(mode==="readonly") throw new Error("Estás en modo lectura. Tocá “Sincronizar” para editar desde este dispositivo.");
+  if(mode==="github"){
+    for(let i=0;i<3;i++){
+      const cur=await ghGet(DATA_PATH,token());
+      const d=normalizeData(cur.data); fn(d);
+      try{ ghSha=await ghPut(d,cur.sha,msg); syncErr=""; renderSync(); applyData(d); return; }
+      catch(e){ if(e.status===409||e.status===422){ await new Promise(r=>setTimeout(r,700)); continue; } throw e; }
+    }
+    throw new Error("Otro dispositivo estaba guardando al mismo tiempo. Probá de nuevo.");
+  }
+  const d=normalizeData(JSON.parse(JSON.stringify(DATA))); fn(d); applyData(d);
+}
+function renderSync(){
+  canWrite = mode!=="readonly";
+  const txt= mode==="github"?(syncErr?"GitHub: sin sincronizar":"Sincronizado con GitHub"): mode==="readonly"?"Solo lectura":"Guardado en este navegador";
+  $("syncState").innerHTML=`<i class="sdot ${syncErr?"readonly":mode}"></i>${txt}${syncErr?`<br><span class="neg" style="font-size:12px">${esc(syncErr)}</span>`:""}`;
+  $("roBanner").classList.toggle("hide",mode!=="readonly");
+}
+async function pullRemote(){
+  try{
+    if(mode==="github"){ const cur=await ghGet(DATA_PATH,token()); if(syncErr){ syncErr=""; renderSync(); } if(cur.sha&&cur.sha!==ghSha){ ghSha=cur.sha; applyData(normalizeData(cur.data)); } }
+    else if(mode==="readonly"){ const d=await rawGet(DATA_PATH); if(d) applyData(normalizeData(d),false); }
+  }catch(e){ if(mode==="github"){ syncErr=e.status===401?e.message:"Sin conexión con GitHub"; renderSync(); } }
+}
+async function connectGitHub(tok){
+  const prev=mode;
+  const cur=await ghGet(DATA_PATH,tok);
+  localStorage.setItem(LS_TOKEN,tok);
+  try{
+    const remote=normalizeData(cur.data);
+    if(cur.data && remote.portfolios.length){ if(DATA.portfolios.length) lsSet(LS_BACKUP,DATA); mode="github"; ghSha=cur.sha; syncErr=""; renderSync(); applyData(remote); return "remote"; }
+    const d=normalizeData(DATA); ghSha=await ghPut(d,cur.sha,"Guardar portafolios"); mode="github"; syncErr=""; renderSync(); applyData(d); return "uploaded";
+  }catch(e){ lsDel(LS_TOKEN); mode=prev; renderSync(); throw e; }
+}
+function openSync(){
+  const on=mode==="github";
+  $("syncConnect").classList.toggle("hide",on); $("syncOn").classList.toggle("hide",!on);
+  $("repoName").textContent=GH.repo; $("repoName2").textContent=`${GH.owner}/${GH.repo}`;
+  $("syncInfo").textContent = on? "Tus portafolios se guardan en tu repo de GitHub y se ven igual en todos tus dispositivos conectados."
+    : mode==="readonly"? "Estás viendo los portafolios guardados en GitHub. Para editarlos desde este dispositivo, conectalo con tu token."
+    : "Tus portafolios están guardados solo en este navegador.";
+  $("impConfirm").classList.add("hide"); openModal("syncModal");
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"}); const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=`portafolios-${TODAY}.json`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+}
+let pendingImport=null;
+
+/* ---------- market data: precios en vivo e histórico desde el navegador ---------- */
+const STABLE=new Set(["USDT","USDC","DAI","FDUSD","TUSD","USDE","PYUSD"]);
+const US_KINDS=new Set(["accion_us","etf_us","otro_usd"]);
+const D912_LISTS={cedear:["arg_cedears"],accion_ar:["arg_stocks"],bono_ar:["arg_bonds","arg_notes","arg_corp"],otro_ars:["arg_bonds","arg_notes","arg_corp","arg_stocks","arg_cedears"],accion_us:["usa_stocks","usa_adrs"],etf_us:["usa_stocks","usa_adrs"],otro_usd:["usa_stocks","usa_adrs"]};
+const D912_HIST={cedear:"cedears",accion_ar:"stocks",bono_ar:"bonds"};
+const noBinance=new Set(), cgIds={}; const d912Cache={};
+async function getJSON(url,ms=15000){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms);
+  try{ const r=await fetch(url,{signal:c.signal,cache:"no-store"}); if(!r.ok){ const e=new Error("HTTP "+r.status); e.status=r.status; throw e; } return await r.json(); } finally{ clearTimeout(t); } }
+async function d912List(name){ const c=d912Cache[name]; if(c&&Date.now()-c.at<50000) return c.map;
+  try{ const arr=await getJSON("https://data912.com/live/"+name); const map={}; (Array.isArray(arr)?arr:[]).forEach(r=>{ if(r&&r.symbol) map[String(r.symbol).toUpperCase()]=r; }); d912Cache[name]={at:Date.now(),map}; return map; }
+  catch(e){ return c?c.map:{}; } }
+function d912Px(row){ let px=Number(row.c)||0; if(!(px>0)){ const b=Number(row.px_bid)||0, a=Number(row.px_ask)||0; px=b>0&&a>0?(a+b)/2:0; }
+  return px>0? {px, chg24: typeof row.pct_change==="number"? row.pct_change/100 : null} : null; }
+async function quoteD912(t,kind){ for(const name of D912_LISTS[kind]||[]){ const row=(await d912List(name))[t]; const q=row&&d912Px(row); if(q) return Object.assign(q,{source:name.startsWith("usa")?"data912 (EE.UU.)":"data912 (BYMA)"}); } return null; }
+async function cgId(t){ if(t in cgIds) return cgIds[t];
+  try{ const j=await getJSON("https://api.coingecko.com/api/v3/search?query="+encodeURIComponent(t)); const c=(j.coins||[]).filter(c=>String(c.symbol).toUpperCase()===t).sort((a,b)=>(a.market_cap_rank||1e9)-(b.market_cap_rank||1e9))[0]; return cgIds[t]=c?c.id:null; }
+  catch(e){ return null; } }
+async function quoteCrypto(t){
+  if(STABLE.has(t)) return {px:1,chg24:0,source:"Stablecoin"};
+  if(!noBinance.has(t)){ try{ const j=await getJSON(`https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(t)}USDT`); const px=Number(j.lastPrice); if(px>0) return {px,chg24:Number(j.priceChangePercent)/100,source:"Binance"}; }catch(e){ if(e.status===400) noBinance.add(t); } }
+  const id=await cgId(t); if(!id) return null;
+  try{ const j=await getJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd&include_24hr_change=true`); const o=j[id]; if(o&&o.usd>0) return {px:o.usd,chg24:o.usd_24h_change!=null?o.usd_24h_change/100:null,source:"CoinGecko"}; }catch(e){}
+  return null;
+}
+async function quoteMEP(){ try{ const j=await getJSON("https://dolarapi.com/v1/dolares/bolsa"); if(Number(j.venta)>0) return {px:Number(j.venta),chg24:null,source:"dolarapi"}; }catch(e){} return null; }
+async function quote(t,kind){ if(t==="MEP") return quoteMEP(); if(kind==="cripto") return quoteCrypto(t); return quoteD912(t,kind); }
+function setLive(t,q){ LIVE[t]=Object.assign({},q,{updated:Date.now()/1000}); }
+function tracked(){ const m=new Map(); txs.forEach(x=>m.set(x.ticker,x.kind)); BENCH.forEach(b=>{ if(!m.has(b.t)) m.set(b.t,b.kind); }); return m; }
+
+let liveBusy=false;
+async function refreshLive(all){
+  if(liveBusy) return; liveBusy=true;
+  try{
+    const jobs=[];
+    for(const [t,k] of tracked()){
+      if(k==="cripto"? (all||!noBinance.has(t)) : all) jobs.push(quote(t,k).then(q=>{ if(q) setLive(t,q); }));
+    }
+    if(all) jobs.push(quoteMEP().then(q=>{ if(q) setLive("MEP",q); }));
+    await Promise.allSettled(jobs);
+    buildPrices(); render();
+  } finally{ liveBusy=false; }
+}
+
+function needFrom(t){
+  const first=txs.map(x=>x.date).sort()[0]||null;
+  if(t==="MEP"||BENCH.some(b=>b.t===t)) return first;
+  return txs.filter(x=>x.ticker===t).map(x=>x.date).sort()[0]||null;
+}
+async function histFetch(t,kind,from){
+  const start=addDays(from,-7);
+  if(t==="MEP"){ const arr=await getJSON("https://api.argentinadatos.com/v1/cotizaciones/dolares/bolsa",25000); const pts={};
+    (arr||[]).forEach(r=>{ const d=String(r.fecha).slice(0,10); if(d>=start&&Number(r.venta)>0) pts[d]=Number(r.venta); }); return {pts,source:"argentinadatos"}; }
+  if(kind==="cripto"){
+    if(STABLE.has(t)) return {pts:{},source:"Stablecoin"};
+    if(!noBinance.has(t)){
+      try{ const pts={}; let cursor=Date.parse(start+"T00:00:00Z"); const end=Date.now();
+        while(cursor<end){ const rows=await getJSON(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(t)}USDT&interval=1d&startTime=${cursor}&limit=1000`);
+          if(!rows.length) break; rows.forEach(k=>{ pts[new Date(k[0]).toISOString().slice(0,10)]=Number(k[4]); });
+          cursor=rows[rows.length-1][0]+864e5; if(rows.length<1000) break; }
+        return {pts,source:"Binance"}; }
+      catch(e){ if(e.status===400) noBinance.add(t); else throw e; }
+    }
+    const id=await cgId(t); if(!id) return null;
+    const days=Math.min(365,Math.max(2,Math.ceil((Date.now()-Date.parse(start+"T00:00:00Z"))/864e5)+1));
+    const j=await getJSON(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${days}&interval=daily`); const pts={};
+    (j.prices||[]).forEach(([ms,v])=>{ if(v>0) pts[new Date(ms).toISOString().slice(0,10)]=v; }); return {pts,source:"CoinGecko"};
+  }
+  const cat=D912_HIST[kind];
+  if(cat){ const arr=await getJSON(`https://data912.com/historical/${cat}/${encodeURIComponent(t)}`,25000); if(!Array.isArray(arr)) return null; const pts={};
+    arr.forEach(r=>{ const d=String(r.date).slice(0,10); if(d>=start&&Number(r.c)>0) pts[d]=Number(r.c); }); return {pts,source:"data912"}; }
+  return null; // acciones y ETFs de EE.UU.: vienen de data/history.json (tarea diaria de GitHub)
+}
+let histBusy=false;
+async function ensureHistory(){
+  if(histBusy||!txs.length) return; histBusy=true; let changed=false;
+  try{
+    const m=tracked(); if(txs.some(x=>(KINDS[x.kind]||{}).cur==="ARS")) m.set("MEP","mep");
+    for(const [t,k] of m){
+      if(US_KINDS.has(k)) continue;
+      const from=needFrom(t); if(!from) continue;
+      const h=HIST[t];
+      if(h&&h.points&&h.from<=from&&h.fetched===TODAY) continue;
+      if(h&&h.failedAt&&Date.now()-h.failedAt<30*60e3) continue;
+      try{ const r=await histFetch(t,k,from);
+        if(r){ const pts={}; for(const d in r.pts) if(d<TODAY) pts[d]=r.pts[d]; HIST[t]={kind:k,from,fetched:TODAY,source:r.source,points:pts}; changed=true; }
+        else HIST[t]=Object.assign({},h||{},{failedAt:Date.now()});
+      }catch(e){ HIST[t]=Object.assign({},h||{},{failedAt:Date.now()}); }
+    }
+  } finally{ histBusy=false; }
+  if(changed){ lsSet(LS_HIST,HIST); buildPrices(); render(); }
+}
+async function loadExtHistory(){ try{ const j=await rawGet(HIST_PATH); if(j&&j.tickers){ EXT_HIST=j.tickers; buildPrices(); render(); } }catch(e){} }
+function buildPrices(){
+  const out={}; const add=t=>out[t]||(out[t]={ticker:t,points:{}});
+  for(const t in EXT_HIST){ const h=EXT_HIST[t]; if(!h||!h.points) continue; const o=add(t); Object.assign(o.points,h.points); if(h.kind) o.kind=h.kind; o.histSource=h.source||"Yahoo Finance"; }
+  for(const t in HIST){ const h=HIST[t]; if(!h||!h.points) continue; const o=add(t); Object.assign(o.points,h.points); o.histSource=h.source; }
+  for(const t in DATA.manual){ Object.assign(add(t).points,DATA.manual[t]); }
+  for(const t in LIVE){ const L=LIVE[t], o=add(t); o.live=L; if(L.px>0) o.points[TODAY]=L.px; }
+  txs.forEach(x=>{ add(x.ticker).kind=x.kind; });
+  BENCH.forEach(b=>{ const o=add(b.t); if(!o.kind) o.kind=b.kind; });
+  prices=out; seriesCache={};
+}
+
+/* ---------- arranque ---------- */
+async function boot(){
+  HIST=lsGet(LS_HIST)||{};
+  const tok=token(), local=lsGet(LS_DATA);
+  if(tok){
+    mode="github"; renderSync();
+    if(local) applyData(normalizeData(local),false);
+    try{ const cur=await ghGet(DATA_PATH,tok); ghSha=cur.sha; syncErr="";
+      if(cur.data) applyData(normalizeData(cur.data));
+      else { const d=normalizeData(local); ghSha=await ghPut(d,null,"Guardar portafolios"); applyData(d); } }
+    catch(e){ syncErr=e.message; if(!local) applyData(emptyData(),false); }
+  } else if(local && (local.portfolios||[]).length){
+    mode="local"; renderSync(); applyData(normalizeData(local));
+  } else {
+    let remote=null; try{ remote=await rawGet(DATA_PATH); }catch(e){}
+    if(remote && (remote.portfolios||[]).length){ mode="readonly"; renderSync(); applyData(normalizeData(remote),false); }
+    else { mode="local"; renderSync(); applyData(normalizeData(local)); }
+  }
+  renderSync(); render();
+  loadExtHistory(); refreshLive(true);
+}
+let tickN=0;
+setInterval(()=>{ if(document.hidden) return; tickN++; const slow=tickN%4===0; refreshLive(slow); if(slow){ ensureHistory(); pullRemote(); } if(tickN%120===0) loadExtHistory(); },15000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ refreshLive(true); pullRemote(); } });
+boot();
 })();
 </script>
 </body>
